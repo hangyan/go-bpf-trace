@@ -80,7 +80,7 @@ func main() {
 	var lostChannel chan uint64
 
 	// create BPF module using BPF object file
-	bpfModule, err = bpf.NewModuleFromFile("main.bpf.o")
+	bpfModule, err = bpf.NewModuleFromFile("trace.bpf.o")
 	if err != nil {
 		errexit(err)
 	}
@@ -99,13 +99,13 @@ func main() {
 	}
 
 	// get BPF program from BPF object
-	bpfProgTcpConnect, err = bpfModule.GetProgram("tcp_connect")
+	bpfProgTcpConnect, err = bpfModule.GetProgram("tracepoint__net__netif_rx")
 	if err != nil {
 		errexit(err)
 	}
 
 	// attach to BPF program to kprobe
-	_, err = bpfProgTcpConnect.AttachKprobe("tcp_connect")
+	_, err = bpfProgTcpConnect.AttachTracepoint("net:netif_rx")
 	if err != nil {
 		errexit(err)
 	}

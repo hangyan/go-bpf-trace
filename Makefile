@@ -4,6 +4,9 @@ OUTPUT = ./output
 
 LIBBPF_SRC = $(abspath libbpf/src)
 LIBBPF_OBJ = $(abspath $(OUTPUT)/libbpf.a)
+LIBBPF_OBJDIR = $(abspath ./$(OUTPUT)/libbpf)
+LIBBPF_DESTDIR = $(abspath ./$(OUTPUT))
+
 
 CC = gcc
 CLANG = clang
@@ -25,7 +28,7 @@ CGO_LDFLAGS_DYN = "-lelf -lz -lbpf"
 .PHONY: $(TEST).go
 .PHONY: $(TEST).bpf.c
 
-TEST = main
+TEST = trace
 
 all: $(TEST)-static
 
@@ -41,15 +44,31 @@ libbpfgo-static:
 libbpfgo-dynamic:
 	$(MAKE) -C $(BASEDIR) libbpfgo-dynamic
 
-vmlinuxh:
-	$(MAKE) -C $(BASEDIR) vmlinuxh
-
 outputdir:
 	$(MAKE) -C $(BASEDIR) outputdir
 
 ## test bpf dependency
 
+
+
+# static libbpf generation for the git submodule
+
+.PHONY: libbpf-static
+libbpf-static: $(LIBBPF_SRC) $(wildcard $(LIBBPF_SRC)/*.[ch])
+	cp -r libbpf output/
+
+	CC="$(CC)" CFLAGS="$(CFLAGS)" LD_FLAGS="$(LDFLAGS)" \
+	   $(MAKE) -C $(LIBBPF_SRC) \
+		BUILD_STATIC_ONLY=1 \
+		OBJDIR=$(LIBBPF_OBJDIR) \
+		DESTDIR=$(LIBBPF_DESTDIR) \
+		INCLUDEDIR= LIBDIR= UAPIDIR= install
+
+
+
 $(TEST).bpf.o: $(TEST).bpf.c
+	cp vmlinux.h output/
+	cp trace.bpf.h output/
 	$(CLANG) $(CFLAGS) -target bpf -I$(OUTPUT) -c $< -o $@
 
 ## test

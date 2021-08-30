@@ -6,6 +6,13 @@
 
 
 
+
+#include <trace.bpf.h>
+
+#define TASK_COMM_LEN 16
+#define	IFNAMSIZ      16
+#define         XT_TABLE_MAXNAMELEN   32
+
 #define ROUTE_EVT_IF 1
 #define ROUTE_EVT_IPTABLE 2
 #define FUNNAMESIZE 30
@@ -64,14 +71,6 @@ struct {
         __uint(key_size, sizeof(u32));
         __uint(value_size, sizeof(u32));
 } events SEC(".maps");
-
-
-struct net__netif_rx__args {
-        void * skbaddr;
-    unsigned int len;
-    __data_loc char[] name;
-}
-
 
 
 
@@ -175,8 +174,8 @@ static inline int do_trace_skb(struct route_evt_t *evt, void *ctx,
     evt->icmpseq = icmphdr.un.echo.sequence;
 
     // Fix endian
-    evt->icmpid = be16_to_cpu(evt->icmpid);
-    evt->icmpseq = be16_to_cpu(evt->icmpseq);
+    // evt->icmpid = evt->icmpid;
+    //evt->icmpseq = evt->icmpseq;
 
     // Get device pointer, we'll need it to get the name and network namespace
     struct net_device *dev;
@@ -200,18 +199,20 @@ static inline int do_trace_skb(struct route_evt_t *evt, void *ctx,
 }
 
 
-static inline int do_trace(void *ctx, struct sk_buff *skb, char* fnname)
+static __always_inline int do_trace(void *ctx, struct sk_buff *skb, char* fnname)
 {
     // Prepare event for userland
     struct route_evt_t evt = {};
 
-    strcpy(evt.funcname, fnname);
+    //strcpy(evt.funcname, fnname);
+    // bpf_probe_read_str(evt.funcname,sizeof(fnname), fnname);
+
 
     // Process packet
     int ret = do_trace_skb(&evt, ctx, skb);
 
     // Send event
-    bpf_perf_event_output(ctx, &events, 0, &evt, sizeof(evt))
+    bpf_perf_event_output(ctx, &events, 0, &evt, sizeof(evt));
      //route_evt.perf_submit(ctx, &evt, sizeof(evt));
 
     // Return
@@ -223,23 +224,23 @@ static inline int do_trace(void *ctx, struct sk_buff *skb, char* fnname)
 
 
 SEC("tracepoint/net/netif_rx")
-tracepoint__net__netif_rx(struct net__netif_rx__args* ctx) {
-    return do_trace(ctx, (struct sk_buff*)ctx -> skbaddr, "net:netif_rx")
+int tracepoint__net__netif_rx(struct trace_event_raw_net_dev_template* ctx) {
+    return do_trace(ctx, (struct sk_buff*)ctx->skbaddr, "net:netif_rx");
 }
 
 SEC("tracepoint/net/net_dev_queue")
-tracepoint__net__net_dev_queue(struct net__netif_rx__args* ctx) {
-    return do_trace(ctx, (struct sk_buff*)ctx->skbaddr, "net:net_dev_queue")
+int tracepoint__net__net_dev_queue(struct trace_event_raw_net_dev_template* ctx) {
+    return do_trace(ctx, (struct sk_buff*)ctx->skbaddr, "net:net_dev_queue");
 }
 
 SEC("tracepoint/net/napi_gro_receive_entry")
-tracepoint__net__napi_gro_receive_entry(struct net__netif_rx__args* ctx) {
-    return do_trace(ctx, (struct sk_buff*)ctx->skbaddr, "net:napi_gro_receive_entry")
+int tracepoint__net__napi_gro_receive_entry(struct trace_event_raw_net_dev_template* ctx) {
+    return do_trace(ctx, (struct sk_buff*)ctx->skbaddr, "net:napi_gro_receive_entry");
 }
 
 SEC("tracepoint/net/netif_receive_skb_entry")
-tracepoint__net__netif_receive_skb_entry(struct net__netif_rx__args* ctx) {
-    return do_trace(ctx, (struct sk_buff*)ctx->skbaddr, "net:netif_receive_skb_entry")
+int tracepoint__net__netif_receive_skb_entry(struct trace_event_raw_net_dev_template* ctx) {
+    return do_trace(ctx, (struct sk_buff*)ctx->skbaddr, "net:netif_receive_skb_entry");
 }
 
 
