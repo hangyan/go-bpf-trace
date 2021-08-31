@@ -7,10 +7,25 @@
 
 #define TASK_COMM_LEN 16
 #define	IFNAMSIZ      16
-#define         XT_TABLE_MAXNAMELEN   32
+#define XT_TABLE_MAXNAMELEN   32
 #define ROUTE_EVT_IF 1
 #define ROUTE_EVT_IPTABLE 2
 #define FUNNAMESIZE 30
+
+
+
+#ifndef BPF_NOEXIST
+#define BPF_NOEXIST 1
+#endif
+
+#ifndef ETH_P_IP
+#define ETH_P_IP 0x0800
+#endif
+
+#ifndef ETH_P_IPV6
+#define ETH_P_IPV6 0x86DD
+#endif
+
 
 
 typedef unsigned char u8;
@@ -75,10 +90,24 @@ struct {
 
 
 
-static inline
+static inline struct ethhdr *skb_to_ethhdr(const struct sk_buff *skb) {
+    return (struct ethhdr *)(BPF_CORE_READ(skb, head) +
+                             BPF_CORE_READ(skb, mac_header));
+}
 
 
+static __always_inline void do_count(struct sk_buff *skb, int len, char *dev) {
+    struct ethhdr *hdr = skb_to_ethhdr(skb);
+    u16 port = BPF_CORE_READ(hdr, h_proto);
+    if (BPF_CORE_READ(skb, network_header) == 0)
+        return;
+    if (prot == bpf_htons(ETH_P_IP))
+        do_count4(skb, len);
+    if (prot == bpf_htons(ETH_P_IPV6))
+        do_count6(skb, len);
+    return;
 
+}
 
 
 /**

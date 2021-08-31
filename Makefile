@@ -28,7 +28,7 @@ CGO_LDFLAGS_DYN = "-lelf -lz -lbpf"
 .PHONY: $(TEST).go
 .PHONY: $(TEST).bpf.c
 
-TEST = trace
+TEST = flowsnoop
 
 all: $(TEST)-static
 
