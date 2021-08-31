@@ -105,7 +105,7 @@ func main() {
 	}
 
 	// attach to BPF program to kprobe
-	_, err = bpfProgTcpConnect.AttachKprobe("tcp_connect")
+	_, err = bpfProgTcpConnect.AttachKprobe("__x64_tcp_connect")
 	if err != nil {
 		errexit(err)
 	}

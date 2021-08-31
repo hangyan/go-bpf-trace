@@ -66,6 +66,24 @@ struct route_evt_t {
 
 
 
+struct data_t {
+        char comm[16];          // command (task_comm_len)
+        u32  pid;               // proccess id
+        u32  uid;               // user id
+        u32  gid;               // group id
+        u32  loginuid;          // real user (login/terminal)
+        u8   family;            // network family
+        u8   proto;             // protocol (sock.h: u8 older, u16 newer)
+        u16  sport;             // source port
+        u16  dport;             // destination port
+        u32  saddr;             // source address
+        struct in6_addr saddr6; // source address (IPv6)
+        u32  daddr;             // destination address
+        struct in6_addr daddr6; // destination address (IPv6)
+        u8   thesource;         // I am the one originating packet
+};
+
+
 
 struct {
         __uint(type, BPF_MAP_TYPE_PERF_EVENT_ARRAY);
@@ -75,7 +93,40 @@ struct {
 
 
 
-static inline
+/*
+ * NOTE: keeping this, for now, compatible to v4.15 kernels, that is why it
+ * does not have all ebpf latest features
+ */
+
+#define BASE \
+        struct data_t data = {};					\
+        struct task_struct *task = (void *) bpf_get_current_task();	\
+        u64 id1 = bpf_get_current_pid_tgid();                           \
+        u64 id2 = bpf_get_current_uid_gid();                            \
+        u32 tgid = id1 >> 32, pid = id1;                                \
+        u32 gid = id2 >> 32, uid = id2;                                 \
+        data.pid = tgid;						\
+        data.uid = uid;							\
+        data.uid = gid;							\
+        bpf_probe_read_kernel(&data.loginuid, sizeof(unsigned int), &task->loginuid.val); \
+        bpf_probe_read_kernel_str(&data.comm, 16, task->comm);
+
+#define COMMON \
+        BASE								\
+        struct inet_sock *inet = inet_sk(sk);				\
+        struct tcp_sock *tp = tcp_sk(sk);				\
+        struct flowi4 *fl4= &inet->cork.fl.u.ip4;			\
+        struct flowi6 *fl6= &inet->cork.fl.u.ip6;			\
+        struct ipv6_pinfo *np = inet6_sk(sk);				\
+
+#undef htons
+#define htons(x) ((__be16)(__u16)(x))
+
+
+
+static_
+
+
 
 
 

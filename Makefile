@@ -28,7 +28,7 @@ CGO_LDFLAGS_DYN = "-lelf -lz -lbpf"
 .PHONY: $(TEST).go
 .PHONY: $(TEST).bpf.c
 
-TEST = main
+TEST = trace
 
 all: $(TEST)-static
 
@@ -69,7 +69,7 @@ libbpf-static: $(LIBBPF_SRC) $(wildcard $(LIBBPF_SRC)/*.[ch])
 $(TEST).bpf.o: $(TEST).bpf.c
 	cp vmlinux.h output/
 	cp trace.bpf.h output/
-	$(CLANG) $(CFLAGS) -target bpf -I$(OUTPUT) -c $< -o $@
+	$(CLANG) $(CFLAGS) -target bpf -D__TARGET_ARCH_x86 -I$(OUTPUT) -c $< -o $@
 
 ## test
 
