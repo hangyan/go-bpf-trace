@@ -34,7 +34,7 @@ func errtimeout() {
 
 // I have not packed the data struct shared among bpf and userland
 // discover holes and paddings with: pahole -C struct_name ./binary
-type _data struct {
+type data struct {
 	Comm      [16]byte // 00 - 16 : command (task_comm_len)
 	Pid       uint32   // 16 - 20 : process id
 	Uid       uint32   // 20 - 24 : user id
@@ -53,18 +53,7 @@ type _data struct {
 	_         [3]byte  // 81 - 84 : -- (padding, total = 84 bytes)
 }
 
-type data struct {
-	Flags uint64
-	Comm [16]byte
-	DevName [16]byte
-	NetNS uint64
-	IPVersion uint64
-	IcmpType uint64
-	IcmpID uint64
-	IcmpSeq uint64
 
-
-}
 
 type gdata struct {
 	Comm     string
@@ -93,7 +82,7 @@ func main() {
 	var lostChannel chan uint64
 
 	// create BPF module using BPF object file
-	bpfModule, err = bpf.NewModuleFromFile("trace.bpf.o")
+	bpfModule, err = bpf.NewModuleFromFile("flowsnoop.bpf.o")
 	if err != nil {
 		errexit(err)
 	}
@@ -101,10 +90,11 @@ func main() {
 
 	// BPF map "events": resize it before object is loaded
 	bpfMapEvents, err = bpfModule.GetMap("events")
-	err = bpfMapEvents.Resize(8192)
+
 	if err != nil {
 		errexit(err)
 	}
+	err = bpfMapEvents.Resize(8192)
 
 	// load BPF object from BPF module
 	if err = bpfModule.BPFLoadObject(); err != nil {
@@ -118,7 +108,7 @@ func main() {
 	}
 
 	// attach to BPF program to kprobe
-	_, err = bpfProgTcpConnect.AttachTracepoint("net:netif_rx")
+	_, err = bpfProgTcpConnect.AttachTracepoint("net:netif_receive_skb")
 	if err != nil {
 		errexit(err)
 	}

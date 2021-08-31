@@ -34,7 +34,7 @@ func errtimeout() {
 
 // I have not packed the data struct shared among bpf and userland
 // discover holes and paddings with: pahole -C struct_name ./binary
-type _data struct {
+type data struct {
 	Comm      [16]byte // 00 - 16 : command (task_comm_len)
 	Pid       uint32   // 16 - 20 : process id
 	Uid       uint32   // 20 - 24 : user id
@@ -53,18 +53,6 @@ type _data struct {
 	_         [3]byte  // 81 - 84 : -- (padding, total = 84 bytes)
 }
 
-type data struct {
-	Flags uint64
-	Comm [16]byte
-	DevName [16]byte
-	NetNS uint64
-	IPVersion uint64
-	IcmpType uint64
-	IcmpID uint64
-	IcmpSeq uint64
-
-
-}
 
 type gdata struct {
 	Comm     string

@@ -15,3 +15,5 @@
 # vendor/
 trace-static
 .idea/
+flowsnoop-static
+flowsnoop.bpf.o

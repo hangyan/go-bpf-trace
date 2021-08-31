@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "vmlinux.h"           /* all kernel types */
+#include <vmlinux.h>           /* all kernel types */
 #include <bpf/bpf_core_read.h> /* for BPF CO-RE helpers */
 #include <bpf/bpf_helpers.h> /* most used helpers: SEC, __always_inline, etc */
 #include <bpf/bpf_tracing.h> /* for getting kprobe arguments */
@@ -50,6 +50,16 @@ struct conn_s {
   u16 dst_port;
   u8 protocol;
 };
+
+struct {
+        __uint(type, BPF_MAP_TYPE_PERF_EVENT_ARRAY);
+        __uint(key_size, sizeof(u32));
+        __uint(value_size, sizeof(u32));
+} events SEC(".maps");
+
+
+
+
 struct connections_s {
   __uint(type, BPF_MAP_TYPE_HASH);
   __uint(max_entries, BUCKETS);
@@ -104,7 +114,7 @@ static inline struct ethhdr *skb_to_ethhdr(const struct sk_buff *skb) {
                             BPF_CORE_READ(skb, mac_header));
 }
 
-static int do_count4(struct sk_buff *skb, int len) {
+static int do_count4(void *ctx, struct sk_buff *skb, int len) {
   struct iphdr *ip = skb_to_iphdr(skb);
   struct conn_s conn = {};
   u64 *oval = 0;
@@ -135,6 +145,10 @@ static int do_count4(struct sk_buff *skb, int len) {
         __sync_fetch_and_add(oval, len);
     }
   }
+
+
+  bpf_perf_event_output(ctx, &events, 0, &conn, sizeof(conn));
+
   return 0;
 }
 
@@ -174,7 +188,7 @@ static int do_count6(struct sk_buff *skb, int len) {
   return 0;
 }
 
-static __always_inline void do_count(struct sk_buff *skb, int len, char *dev) {
+static __always_inline void do_count(void *ctx, struct sk_buff *skb, int len, char *dev) {
   struct ethhdr *hdr = skb_to_ethhdr(skb);
   u16 prot = BPF_CORE_READ(hdr, h_proto);
   if (!is_equal(dev, targ_iface, 16))
@@ -182,9 +196,9 @@ static __always_inline void do_count(struct sk_buff *skb, int len, char *dev) {
   if (BPF_CORE_READ(skb, network_header) == 0)
     return;
   if (prot == bpf_htons(ETH_P_IP))
-    do_count4(skb, len);
+      do_count4(ctx, skb, len);
   if (prot == bpf_htons(ETH_P_IPV6))
-    do_count6(skb, len);
+      do_count6(skb, len);
   return;
 }
 
@@ -196,7 +210,7 @@ int tracepoint__net_netif_receive_skb(
   };
   struct sk_buff *skb = (struct sk_buff *)ctx->skbaddr;
   TP_DATA_LOC_READ_CONST(dev, name, 16);
-  do_count(skb, ctx->len, dev);
+  do_count(ctx, skb, ctx->len, dev);
   return 0;
 }
 
@@ -208,7 +222,7 @@ int tracepoint__net_net_dev_start_xmit(
   };
   struct sk_buff *skb = (struct sk_buff *)ctx->skbaddr;
   TP_DATA_LOC_READ_CONST(dev, name, 16);
-  do_count(skb, ctx->len - ctx->network_offset, dev);
+  do_count(ctx, skb, ctx->len - ctx->network_offset, dev);
   return 0;
 }
 
