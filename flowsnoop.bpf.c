@@ -204,7 +204,7 @@ static __always_inline void do_count(void *ctx, struct sk_buff *skb, int len, ch
 
 SEC("tracepoint/net/netif_receive_skb")
 int tracepoint__net_netif_receive_skb(
-    struct trace_event_raw_net_dev_template *ctx) {
+  struct trace_event_raw_net_dev_template *ctx) {
   char dev[16] = {
       0,
   };

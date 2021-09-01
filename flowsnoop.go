@@ -34,7 +34,7 @@ func errtimeout() {
 
 // I have not packed the data struct shared among bpf and userland
 // discover holes and paddings with: pahole -C struct_name ./binary
-type data struct {
+type _data struct {
 	Comm      [16]byte // 00 - 16 : command (task_comm_len)
 	Pid       uint32   // 16 - 20 : process id
 	Uid       uint32   // 20 - 24 : user id
@@ -54,8 +54,25 @@ type data struct {
 }
 
 
+type data struct {
+	SAddr uint32;
+	DAddr uint32;
+	SPort uint16;
+	DPort uint16;
+	Proto uint8;
+}
+
 
 type gdata struct {
+	SAddr string
+	DAddr    string
+	SPort    uint
+	DPort    uint
+	Proto    uint
+}
+
+
+type _gdata struct {
 	Comm     string
 	Pid      uint
 	Uid      uint
@@ -102,7 +119,7 @@ func main() {
 	}
 
 	// get BPF program from BPF object
-	bpfProgTcpConnect, err = bpfModule.GetProgram("tracepoint__net_netifx_receive_skb")
+	bpfProgTcpConnect, err = bpfModule.GetProgram("tracepoint__net_netif_receive_skb")
 	if err != nil {
 		errexit(err)
 	}
@@ -146,7 +163,7 @@ func main() {
 
 			err = binary.Read(dataBuffer, binary.LittleEndian, &dt)
 			if err != nil {
-				fmt.Println(err)
+				fmt.Println("read data error: " + err.Error())
 				continue
 			}
 
@@ -156,12 +173,6 @@ func main() {
 			binary.BigEndian.PutUint16(bdport, dt.DPort)
 
 			godata := gdata{
-				Comm:     string(bytes.TrimRight(dt.Comm[:], "\x00")),
-				Pid:      uint(dt.Pid),
-				Uid:      uint(dt.Uid),
-				Gid:      uint(dt.Gid),
-				LoginUid: uint(dt.LoginUid),
-				Family:   uint(dt.Family),
 				Proto:    uint(dt.Proto),
 				SPort:    uint(binary.LittleEndian.Uint16(bsport)),
 				DPort:    uint(binary.LittleEndian.Uint16(bdport)),
@@ -169,7 +180,7 @@ func main() {
 
 			// TCPv4 only example
 
-			if godata.Family == 2 {
+
 
 				var LeSAddr = make([]byte, 4)
 				var LeDAddr = make([]byte, 4)
@@ -179,9 +190,8 @@ func main() {
 				godata.SAddr = net.IP.String(LeSAddr)
 				godata.DAddr = net.IP.String(LeDAddr)
 
-				fmt.Fprintf(os.Stdout, "%s (pid: %d) (loginuid: %d) | (proto: %d) %s (%d) => %s (%d)\n",
-					godata.Comm, godata.Pid,
-					godata.LoginUid, godata.Proto,
+				fmt.Fprintf(os.Stdout, "(proto: %d) %s (%d) => %s (%d)\n",
+					 godata.Proto,
 					godata.SAddr, godata.SPort,
 					godata.DAddr, godata.DPort)
 
@@ -191,7 +201,6 @@ func main() {
 						allgood <- true
 					}
 				}
-			}
 		}
 	}()
 
