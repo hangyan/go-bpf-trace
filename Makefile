@@ -91,6 +91,13 @@ $(TEST)-dynamic: libbpfgo-dynamic | $(TEST).bpf.o
 		CGO_LDFLAGS=$(CGO_LDFLAGS_DYN) \
 		go build -o ./$(TEST)-dynamic ./$(TEST).go
 
+
+docker:
+	docker build -t flowsnoop .
+docker-run:
+	docker run -d --name fs --privileged flowsnoop tail -f /dev/null
+
+
 ## run
 
 .PHONY: run
