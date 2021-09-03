@@ -100,7 +100,7 @@ func Pack32BinaryIP4(ip4Address string) string {
 	ipv4Decimal := IP4toInt(net.ParseIP(ip4Address))
 
 	buf := new(bytes.Buffer)
-	err := binary.Write(buf, binary.BigEndian, uint32(ipv4Decimal))
+	err := binary.Write(buf, binary.LittleEndian, uint32(ipv4Decimal))
 
 	if err != nil {
 		fmt.Println("Unable to write to buffer:", err)
@@ -155,7 +155,7 @@ func main() {
 	if err != nil {
 		errexit(err)
 	}
-	fmt.Printf("Filter result by %d:%d\n", k, v)
+	fmt.Printf("Filter result by %d:%d\n", k, value)
 
 	// get BPF program from BPF object
 	bpfProgTcpConnect, err = bpfModule.GetProgram("tracepoint__net_netif_receive_skb")
