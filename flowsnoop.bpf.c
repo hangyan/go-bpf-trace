@@ -59,6 +59,14 @@ struct {
 
 
 
+// used for config setup
+struct {
+    __uint(type, BPF_MAP_TYPE_ARRAY);
+    __uint(max_entries, 128);
+    __type(key, u32);
+    __type(value, struct u32);
+} config_map SEC(".maps");
+
 
 struct connections_s {
   __uint(type, BPF_MAP_TYPE_HASH);
@@ -94,6 +102,23 @@ static int is_equal(char *got, const volatile char *want, int n) {
   return 0;
 }
 
+
+// assume we now only filter on source ip
+static __always_inline int get_config(u32 key)
+{
+    u32 *config = bpf_map_lookup_elem(&config_map, &key);
+    if (config == NULL)
+        return 0;
+    return *config;
+}
+
+
+static __always_inline bool source_ip_match(u32 value) {
+    filter = get_config(1);
+    return filter == u32;
+}
+
+
 static inline struct tcphdr *skb_to_tcphdr(const struct sk_buff *skb) {
   return (struct tcphdr *)(BPF_CORE_READ(skb, head) +
                            BPF_CORE_READ(skb, transport_header));
@@ -103,7 +128,7 @@ static inline struct iphdr *skb_to_iphdr(const struct sk_buff *skb) {
   return (struct iphdr *)(BPF_CORE_READ(skb, head) +
                           BPF_CORE_READ(skb, network_header));
 }
-
+丑
 static inline struct ipv6hdr *skb_to_ipv6hdr(const struct sk_buff *skb) {
   return (struct ipv6hdr *)(BPF_CORE_READ(skb, head) +
                             BPF_CORE_READ(skb, network_header));
@@ -121,7 +146,7 @@ static int do_count4(void *ctx, struct sk_buff *skb, int len) {
   u8 version;
   struct connections_s *conn_table = &connections;
   bpf_probe_read(&version, 1, ip);
-  if ((version & 0xf0) != 0x40) /* IPv4 only */
+  if ((version & 0xf0) != 0x40) /* IPv4 only */y
     return -1;
   BPF_CORE_READ_INTO(&conn.protocol, ip, protocol);
   BPF_CORE_READ_INTO(&conn.src_ip, ip, saddr);
@@ -132,6 +157,12 @@ static int do_count4(void *ctx, struct sk_buff *skb, int len) {
     BPF_CORE_READ_INTO(&conn.src_port, tcp, source);
     BPF_CORE_READ_INTO(&conn.dst_port, tcp, dest);
   }
+
+  if !source_ip_match(conn.src_ip) {
+          return -1;
+  }
+
+
   if (use_map)
     conn_table = &bconnections;
   oval = bpf_map_lookup_elem(conn_table, &conn);

@@ -12,6 +12,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	bpf "github.com/aquasecurity/libbpfgo"
+	"math/big"
 	"net"
 	"os"
 	"time"
@@ -53,24 +54,21 @@ type _data struct {
 	_         [3]byte  // 81 - 84 : -- (padding, total = 84 bytes)
 }
 
-
 type data struct {
-	SAddr uint32;
-	DAddr uint32;
-	SPort uint16;
-	DPort uint16;
-	Proto uint8;
+	SAddr uint32
+	DAddr uint32
+	SPort uint16
+	DPort uint16
+	Proto uint8
 }
-
 
 type gdata struct {
 	SAddr string
-	DAddr    string
-	SPort    uint
-	DPort    uint
-	Proto    uint
+	DAddr string
+	SPort uint
+	DPort uint
+	Proto uint
 }
-
 
 type _gdata struct {
 	Comm     string
@@ -84,6 +82,37 @@ type _gdata struct {
 	DPort    uint
 	SAddr    string
 	DAddr    string
+}
+
+// IPv4Int...
+func IP4toInt(IPv4Address net.IP) int64 {
+	IPv4Int := big.NewInt(0)
+	IPv4Int.SetBytes(IPv4Address.To4())
+	return IPv4Int.Int64()
+}
+
+//similar to Python's socket.inet_aton() function
+//https://docs.python.org/3/library/socket.html#socket.inet_aton
+
+func Pack32BinaryIP4(ip4Address string) string {
+	ipv4Decimal := IP4toInt(net.ParseIP(ip4Address))
+
+	buf := new(bytes.Buffer)
+	err := binary.Write(buf, binary.BigEndian, uint32(ipv4Decimal))
+
+	if err != nil {
+		fmt.Println("Unable to write to buffer:", err)
+	}
+
+	// present in hexadecimal format
+	result := fmt.Sprintf("%x", buf.Bytes())
+	return result
+}
+
+func HexStringToNum(data string) int64 {
+	n := new(big.Int)
+	n.SetString(data, 16)
+	return n.Int64()
 }
 
 func main() {
@@ -115,6 +144,18 @@ func main() {
 
 	// load BPF object from BPF module
 	if err = bpfModule.BPFLoadObject(); err != nil {
+		errexit(err)
+	}
+
+	// get config map
+	bpfConfigMap, err := bpfModule.GetMap("config_map")
+	if err != nil {
+		errexit(err)
+	}
+	key := uint32(1)
+	value := HexStringToNum(Pack32BinaryIP4("192.168.227.2"))
+	err = bpfConfigMap.Update(unsafe.Pointer(&key), unsafe.Pointer(&value))
+	if err != nil {
 		errexit(err)
 	}
 
@@ -173,34 +214,32 @@ func main() {
 			binary.BigEndian.PutUint16(bdport, dt.DPort)
 
 			godata := gdata{
-				Proto:    uint(dt.Proto),
-				SPort:    uint(binary.LittleEndian.Uint16(bsport)),
-				DPort:    uint(binary.LittleEndian.Uint16(bdport)),
+				Proto: uint(dt.Proto),
+				SPort: uint(binary.LittleEndian.Uint16(bsport)),
+				DPort: uint(binary.LittleEndian.Uint16(bdport)),
 			}
 
 			// TCPv4 only example
 
+			var LeSAddr = make([]byte, 4)
+			var LeDAddr = make([]byte, 4)
 
+			binary.LittleEndian.PutUint32(LeSAddr, dt.SAddr)
+			binary.LittleEndian.PutUint32(LeDAddr, dt.DAddr)
+			godata.SAddr = net.IP.String(LeSAddr)
+			godata.DAddr = net.IP.String(LeDAddr)
 
-				var LeSAddr = make([]byte, 4)
-				var LeDAddr = make([]byte, 4)
+			fmt.Fprintf(os.Stdout, "(proto: %d) %s (%d) => %s (%d)\n",
+				godata.Proto,
+				godata.SAddr, godata.SPort,
+				godata.DAddr, godata.DPort)
 
-				binary.LittleEndian.PutUint32(LeSAddr, dt.SAddr)
-				binary.LittleEndian.PutUint32(LeDAddr, dt.DAddr)
-				godata.SAddr = net.IP.String(LeSAddr)
-				godata.DAddr = net.IP.String(LeDAddr)
-
-				fmt.Fprintf(os.Stdout, "(proto: %d) %s (%d) => %s (%d)\n",
-					 godata.Proto,
-					godata.SAddr, godata.SPort,
-					godata.DAddr, godata.DPort)
-
-				if godata.DAddr == "127.0.0.1" {
-					if godata.DPort == 12345 {
-						// magic connection makes test succeed
-						allgood <- true
-					}
+			if godata.DAddr == "127.0.0.1" {
+				if godata.DPort == 12345 {
+					// magic connection makes test succeed
+					allgood <- true
 				}
+			}
 		}
 	}()
 
