@@ -12,6 +12,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	bpf "github.com/aquasecurity/libbpfgo"
+	"github.com/spf13/cast"
 	"math/big"
 	"net"
 	"os"
@@ -110,12 +111,6 @@ func Pack32BinaryIP4(ip4Address string) string {
 	return result
 }
 
-func HexStringToNum(data string) int64 {
-	n := new(big.Int)
-	n.SetString(data, 16)
-	return n.Int64()
-}
-
 func main() {
 
 	var err error
@@ -154,10 +149,9 @@ func main() {
 		errexit(err)
 	}
 
-	value := HexStringToNum(Pack32BinaryIP4("192.168.227.2"))
-	v := uint32(value)
+	value := cast.ToUint32("0x" + Pack32BinaryIP4("192.168.227.2"))
 	k := uint32(1)
-	err = bpfConfigMap.Update(unsafe.Pointer(&k), unsafe.Pointer(&v))
+	err = bpfConfigMap.Update(unsafe.Pointer(&k), unsafe.Pointer(&value))
 	if err != nil {
 		errexit(err)
 	}
