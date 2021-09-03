@@ -16,6 +16,7 @@ import (
 	"net"
 	"os"
 	"time"
+	"unsafe"
 )
 
 func okexit() {
@@ -152,12 +153,15 @@ func main() {
 	if err != nil {
 		errexit(err)
 	}
-	key := uint32(1)
+
 	value := HexStringToNum(Pack32BinaryIP4("192.168.227.2"))
-	err = bpfConfigMap.Update(unsafe.Pointer(&key), unsafe.Pointer(&value))
+	v := uint32(value)
+	k := uint32(1)
+	err = bpfConfigMap.Update(unsafe.Pointer(&k), unsafe.Pointer(&v))
 	if err != nil {
 		errexit(err)
 	}
+	fmt.Printf("Filter result by %d:%d\n", k, v)
 
 	// get BPF program from BPF object
 	bpfProgTcpConnect, err = bpfModule.GetProgram("tracepoint__net_netif_receive_skb")

@@ -1,7 +1,5 @@
 module github.com/hangyan/go-bpf-trace
 
-go 1.17
+go 1.16
 
-require github.com/aquasecurity/libbpfgo v0.1.1
-
-require golang.org/x/sys v0.0.0-20210514084401-e8d321eab015 // indirect
+require github.com/aquasecurity/libbpfgo v0.1.2-0.20210902223723-0ccd53e0b6ea
