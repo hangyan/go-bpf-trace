@@ -93,9 +93,9 @@ $(TEST)-dynamic: libbpfgo-dynamic | $(TEST).bpf.o
 
 
 docker:
-	docker build -t flowsnoop .
+	docker build -t hangyan/flowsnoop .
 docker-run:
-	docker run -d --name fs --privileged flowsnoop tail -f /dev/null
+	docker run -d --name fs  -v /sys/kernel/debug:/sys/kernel/debug:ro  --privileged hangyan/flowsnoop tail -f /dev/null
 
 
 ## run
