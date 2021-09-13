@@ -45,6 +45,7 @@ volatile int use_map = 0;
 #define BUCKETS 10240
 
 struct conn_s {
+  u32 id;
   u32 src_ip;
   u32 dst_ip;
   u16 src_port;
@@ -57,16 +58,6 @@ struct {
         __uint(key_size, sizeof(u32));
         __uint(value_size, sizeof(u32));
 } events SEC(".maps");
-
-
-// used for config setup
-struct {
-    __uint(type, BPF_MAP_TYPE_HASH);
-    __uint(max_entries, 128);
-    __type(key, u32);
-    __type(value, u32);
-} config_map SEC(".maps");
-
 
 
 // used for config setup
