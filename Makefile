@@ -68,7 +68,7 @@ libbpf-static: $(LIBBPF_SRC) $(wildcard $(LIBBPF_SRC)/*.[ch])
 
 $(TEST).bpf.o: $(TEST).bpf.c
 	cp vmlinux.h output/
-	cp trace.bpf.h output/
+	#cp trace.bpf.h output/
 	$(CLANG) $(CFLAGS) -target bpf -D__TARGET_ARCH_x86 -I$(OUTPUT) -c $< -o $@
 
 ## test
