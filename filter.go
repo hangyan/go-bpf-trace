@@ -142,7 +142,7 @@ func main() {
 	if err != nil {
 		errexit(err)
 	}
-	fmt.Printf("Filter result by %d:%d\n", k, value)
+	fmt.Printf("Filter result by %d:%s\n", *idPtr, *ip)
 
 	// get BPF program from BPF object
 	bpfProgTcpConnect, err = bpfModule.GetProgram("tracepoint__net_netif_receive_skb")
@@ -176,8 +176,6 @@ func main() {
 
 	// start perf event polling (will receive events through eventChannel)
 	perfBuffer.Start()
-
-	fmt.Println("Listening for tcp_connect(), <Ctrl-C> or or SIG_TERM to end it.")
 
 	timeout := make(chan bool)
 	allgood := make(chan bool)
