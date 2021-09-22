@@ -10,6 +10,7 @@ import "C"
 import (
 	"bytes"
 	"encoding/binary"
+	"flag"
 	"fmt"
 	bpf "github.com/aquasecurity/libbpfgo"
 	"github.com/spf13/cast"
@@ -36,6 +37,7 @@ func errtimeout() {
 }
 
 type data struct {
+	ID    uint32
 	SAddr uint32
 	DAddr uint32
 	SPort uint16
@@ -44,6 +46,7 @@ type data struct {
 }
 
 type gdata struct {
+	ID    uint
 	SAddr string
 	DAddr string
 	SPort uint
@@ -91,6 +94,11 @@ func Pack32BinaryIP4(ip4Address string) string {
 }
 
 func main() {
+
+	// parse args
+	idPtr := flag.Int("id", 2, "give this program an id")
+	ip := flag.String("ip", "127.0.0.1", "filter by this ip")
+	flag.Parse()
 
 	var err error
 
@@ -148,6 +156,15 @@ func main() {
 		errexit(err)
 	}
 
+	go func() {
+		k = uint32(*idPtr)
+		value = cast.ToUint32("0x" + Pack32BinaryIP4(*ip))
+		err = bpfConfigMap.Update(unsafe.Pointer(&k), unsafe.Pointer(&value))
+		if err != nil {
+			errexit(err)
+		}
+	}()
+
 	// channel for events (and lost events)
 	eventsChannel = make(chan []byte)
 	lostChannel = make(chan uint64)
@@ -191,6 +208,7 @@ func main() {
 			binary.BigEndian.PutUint16(bdport, dt.DPort)
 
 			godata := gdata{
+				ID:    uint(dt.ID),
 				Proto: uint(dt.Proto),
 				SPort: uint(binary.LittleEndian.Uint16(bsport)),
 				DPort: uint(binary.LittleEndian.Uint16(bdport)),
@@ -206,10 +224,10 @@ func main() {
 			godata.SAddr = net.IP.String(LeSAddr)
 			godata.DAddr = net.IP.String(LeDAddr)
 
-			fmt.Fprintf(os.Stdout, "(proto: %d) %s (%d) => %s (%d)\n",
-				godata.Proto,
-				godata.SAddr, godata.SPort,
-				godata.DAddr, godata.DPort)
+			fmt.Fprintf(os.Stdout, "(id: %d) %s => %s\n",
+				godata.ID,
+				godata.SAddr,
+				godata.DAddr)
 
 			if godata.DAddr == "127.0.0.1" {
 				if godata.DPort == 12345 {
