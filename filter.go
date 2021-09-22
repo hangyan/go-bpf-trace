@@ -103,7 +103,7 @@ func main() {
 	var lostChannel chan uint64
 
 	// create BPF module using BPF object file
-	bpfModule, err = bpf.NewModuleFromFile("flowsnoop.bpf.o")
+	bpfModule, err = bpf.NewModuleFromFile("filter.bpf.o")
 	if err != nil {
 		errexit(err)
 	}
